@@ -3,18 +3,9 @@
  * These define the available tools that the LLM can call.
  */
 
-export interface ToolSchema {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: {
-      type: 'object';
-      properties: Record<string, any>;
-      required: string[];
-    };
-  };
-}
+import { ToolSchema } from './schema-types.js';
+
+export type { ToolSchema } from './schema-types.js';
 
 // File Operation Tools
 
@@ -369,7 +360,7 @@ export const ALL_TOOL_SCHEMAS = [
   LIST_FILES_SCHEMA,
   CREATE_TASKS_SCHEMA,
   UPDATE_TASKS_SCHEMA,
-  EXECUTE_COMMAND_SCHEMA
+  EXECUTE_COMMAND_SCHEMA,
 ];
 
 // Safe tools that can be auto-executed without approval
@@ -378,7 +369,7 @@ export const SAFE_TOOLS = [
   'list_files',
   'search_files',
   'create_tasks',
-  'update_tasks'
+  'update_tasks',
 ];
 
 // Tools that require approval, unless auto-approval is enabled

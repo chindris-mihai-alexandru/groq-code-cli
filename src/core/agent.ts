@@ -3,6 +3,7 @@ import type { ClientOptions } from 'groq-sdk';
 import { executeTool } from '../tools/tools.js';
 import { validateReadBeforeEdit, getReadBeforeEditError } from '../tools/validators.js';
 import { ALL_TOOL_SCHEMAS, DANGEROUS_TOOLS, APPROVAL_REQUIRED_TOOLS } from '../tools/tool-schemas.js';
+import { mcpManager } from '../mcp/client.js';
 import { ConfigManager } from '../utils/local-settings.js';
 import { getProxyAgent, getProxyInfo } from '../utils/proxy-config.js';
 import fs from 'fs';
@@ -309,11 +310,15 @@ When asked about your identity, you should identify yourself as a coding assista
           debugLog('Messages count:', this.messages.length);
           debugLog('Last few messages:', this.messages.slice(-3));
           
+          // Combine built-in tools with MCP tools
+          const mcpToolSchemas = mcpManager.getToolSchemas();
+          const allTools = [...ALL_TOOL_SCHEMAS, ...mcpToolSchemas];
+          
           // Prepare request body for curl logging
           const requestBody = {
             model: this.model,
             messages: this.messages,
-            tools: ALL_TOOL_SCHEMAS,
+            tools: allTools,
             tool_choice: 'auto' as const,
             temperature: this.temperature,
             max_tokens: 8000,
@@ -333,7 +338,7 @@ When asked about your identity, you should identify yourself as a coding assista
           const response = await this.client.chat.completions.create({
             model: this.model,
             messages: this.messages as any,
-            tools: ALL_TOOL_SCHEMAS,
+            tools: allTools,
             tool_choice: 'auto',
             temperature: this.temperature,
             max_tokens: 8000,
@@ -560,6 +565,40 @@ When asked about your identity, you should identify yourself as a coding assista
       // Notify UI about tool start
       if (this.onToolStart) {
         this.onToolStart(toolName, toolArgs);
+      }
+
+      // Check if this is an MCP tool
+      if (mcpManager.isMCPTool(toolName)) {
+        // MCP tools always require approval (they're external)
+        if (this.onToolApproval) {
+          // Check for interruption before waiting for approval
+          if (this.isInterrupted) {
+            const result = { error: 'Tool execution interrupted by user', success: false, userRejected: true };
+            if (this.onToolEnd) {
+              this.onToolEnd(toolName, result);
+            }
+            return result;
+          }
+          
+          const approvalResult = await this.onToolApproval(toolName, toolArgs);
+          
+          if (!approvalResult.approved) {
+            const result = { error: 'Tool execution canceled by user', success: false, userRejected: true };
+            if (this.onToolEnd) {
+              this.onToolEnd(toolName, result);
+            }
+            return result;
+          }
+        }
+
+        // Execute MCP tool
+        const result = await mcpManager.executeTool(toolName, toolArgs);
+        
+        if (this.onToolEnd) {
+          this.onToolEnd(toolName, result);
+        }
+        
+        return result;
       }
 
       // Check read-before-edit for edit tools

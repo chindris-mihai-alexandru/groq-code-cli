@@ -6,6 +6,7 @@ import { clearCommand } from './definitions/clear.js';
 import { initCommand } from './definitions/init.js';
 import { reasoningCommand } from './definitions/reasoning.js';
 import { statsCommand } from './definitions/stats.js';
+import { mcpCommand } from './definitions/mcp.js';
 
 const availableCommands: CommandDefinition[] = [
   helpCommand,
@@ -15,6 +16,7 @@ const availableCommands: CommandDefinition[] = [
   initCommand,
   reasoningCommand,
   statsCommand,
+  mcpCommand,
 ];
 
 export function getAvailableCommands(): CommandDefinition[] {
@@ -43,7 +45,8 @@ export function handleSlashCommand(
   });
   
   if (commandDef) {
-    commandDef.handler(context);
+    // Pass the full command string to the handler
+    commandDef.handler({ ...context, commandString: command });
   }
 }
 

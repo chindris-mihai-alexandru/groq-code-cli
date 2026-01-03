@@ -12,6 +12,8 @@ export interface CommandContext {
     totalRequests: number;
     totalTime: number;
   };
+  /** The full command string including /command and arguments */
+  commandString?: string;
 }
 
 export interface CommandDefinition {
